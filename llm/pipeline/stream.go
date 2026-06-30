@@ -334,6 +334,16 @@ func (p *pipeline) stream(
 
 	rawLlmStream := llmStream
 
+	// Ensure finish_reason is set when the upstream model returns tool calls
+	// without signalling the completion reason. Some providers (e.g. GLM) emit
+	// tool_call deltas but stop streaming immediately without a finish_reason
+	// chunk. Agent frameworks (Claude Code, Pi Agent) rely on finish_reason to
+	// detect the end of a tool-call turn and will error out ("Stream ended
+	// without finish_reason") or truncate the response if it is missing.
+	llmStream = ensureToolFinishReason(llmStream)
+
+	rawLlmStream = llmStream
+
 	// Apply LLM stream middlewares
 	llmStream, err = p.applyLlmStreamMiddlewares(ctx, llmStream)
 	if err != nil {
